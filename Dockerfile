@@ -1,4 +1,4 @@
-FROM golang:1.22-alpine AS builder
+FROM golang:1.23-alpine AS builder
 
 WORKDIR /go/src/github.com/akyriako/typesense-peer-resolver
 
@@ -11,6 +11,7 @@ RUN set -euxo pipefail \
 # Run steps
 FROM alpine:3
 
+EXPOSE 8080
 COPY --from=builder /go/src/github.com/akyriako/typesense-peer-resolver/tspr /opt
 
 RUN mkdir -p /usr/share/typesense
