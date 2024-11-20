@@ -5,6 +5,8 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	slogmulti "github.com/samber/slog-multi"
+	slogsampling "github.com/samber/slog-sampling"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
@@ -48,9 +50,24 @@ func init() {
 		levelInfo = slog.LevelDebug
 	}
 
-	logger = slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{
-		Level: levelInfo,
-	}))
+	option := slogsampling.AbsoluteSamplingOption{
+		Tick: 3 * time.Second,
+		Max:  2,
+
+		Matcher: slogsampling.MatchAll(),
+	}
+
+	logger = slog.New(
+		slogmulti.
+			Pipe(option.NewMiddleware()).
+			Handler(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{
+				Level: levelInfo,
+			})),
+	)
+
+	//logger = slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{
+	//	Level: levelInfo,
+	//}))
 
 	slog.SetDefault(logger)
 
