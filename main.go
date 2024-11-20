@@ -51,8 +51,8 @@ func init() {
 	}
 
 	option := slogsampling.ThresholdSamplingOption{
-		Tick:      3 * time.Second,
-		Threshold: 10,
+		Tick:      30 * time.Second,
+		Threshold: 1,
 		Rate:      0.1,
 
 		Matcher: slogsampling.MatchAll(),
