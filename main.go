@@ -50,9 +50,10 @@ func init() {
 		levelInfo = slog.LevelDebug
 	}
 
-	option := slogsampling.AbsoluteSamplingOption{
-		Tick: 3 * time.Second,
-		Max:  2,
+	option := slogsampling.ThresholdSamplingOption{
+		Tick:      3 * time.Second,
+		Threshold: 10,
+		Rate:      0.1,
 
 		Matcher: slogsampling.MatchAll(),
 	}
@@ -64,10 +65,6 @@ func init() {
 				Level: levelInfo,
 			})),
 	)
-
-	//logger = slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{
-	//	Level: levelInfo,
-	//}))
 
 	slog.SetDefault(logger)
 
@@ -123,7 +120,13 @@ func serve(wg *sync.WaitGroup, healthPort int) {
 	http.HandleFunc("/livez", livezHandler)
 	http.HandleFunc("/readyz/", readyzHandler)
 
-	err := http.ListenAndServe(fmt.Sprintf(":%d", healthPort), nil)
+	addr := fmt.Sprintf(":%d", healthPort)
+	server := &http.Server{
+		Addr:              addr,
+		ReadHeaderTimeout: 3 * time.Second,
+	}
+
+	err := server.ListenAndServe()
 	if err != nil {
 		logger.Error(fmt.Sprintf("failed to serve a mux: %s", err))
 		os.Exit(1)
@@ -134,8 +137,6 @@ func livezHandler(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
 		w.WriteHeader(http.StatusMethodNotAllowed)
 	}
-
-	w.WriteHeader(http.StatusOK)
 }
 
 func readyzHandler(w http.ResponseWriter, r *http.Request) {
@@ -149,8 +150,6 @@ func readyzHandler(w http.ResponseWriter, r *http.Request) {
 	if !readyz {
 		w.WriteHeader(http.StatusServiceUnavailable)
 	}
-
-	w.WriteHeader(http.StatusOK)
 }
 
 func watch(wg *sync.WaitGroup, nodesFile, namespace, app string, peerPort, apiPort int) {
@@ -179,7 +178,7 @@ func watch(wg *sync.WaitGroup, nodesFile, namespace, app string, peerPort, apiPo
 	for range watcher.ResultChan() {
 		nodes := getNodes(namespace, app, peerPort, apiPort)
 		if strings.TrimSpace(nodes) != "" {
-			err := os.WriteFile(nodesFile, []byte(nodes), 0666)
+			err := os.WriteFile(nodesFile, []byte(nodes), 0600)
 			if err != nil {
 				logger.Error(fmt.Sprintf("failed to write nodes file: %s", err))
 			}
